@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- Lightweight frontend Router -->
+	<script type="text/javascript" src="https://cdn.rawgit.com/visionmedia/page.js/master/page.js"></script>
+
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.14.1/moment.min.js"></script>
+
+	<!-- Depends on jQuery -->
+	<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+	<!-- Depends on jQuery, Bootstrap, moment -->
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/css/bootstrap-datetimepicker.min.css">
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js"></script>
+
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js"></script>
+
+	<!-- Depends on jQuery, Bootstrap -->
+	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs/dt-1.10.12/datatables.min.css">
+	<script type="text/javascript" src="https://cdn.datatables.net/v/bs/dt-1.10.12/datatables.min.js"></script>
+</head>
+<body>
+	<div id="main-container" class="container"></div>
+
+	<script id="template-dashboard" type="text/x-handlebars-template">
+		<div class="row">
+			<div class="col-sm-12">
+				<h1>My Event Dashboard</h1>
+			</div>
+			<div class="col-sm-12 form-group text-right">
+				<a href="/event/add" class="btn btn-primary">Add Event</a>
+			</div>
+			<div class="col-sm-12">
+				<table id="event-list" class="table table-striped table-hover">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>Title</th>
+							<th>Group</th>
+							<th>Start Date</th>
+							<th>End Date</th>
+							<th>Guests</th>
+							<th data-orderable="false"></th>
+						</tr>
+					</thead>
+					<tbody>
+						{{#each events}}
+							<tr data-event-id="{{id}}">
+								<th scope="row">{{id}}</th>
+								<td>{{title}}</td>
+								<td>
+									{{#if start_date}}
+										{{eventGroup start_date}}
+									{{else}}
+										TBD
+									{{/if}}
+								</td>
+								<td data-sort="{{#if start_date}}{{moment start_date 'x'}}{{else}}0{{/if}}">
+									{{#if start_date}}
+										{{moment start_date}}
+									{{else}}
+										TBD
+									{{/if}}
+								</td>
+								<td data-sort="{{#if end_date}}{{moment end_date 'x'}}{{else}}0{{/if}}">
+									{{#if end_date}}
+										{{moment end_date}}
+									{{else}}
+										TBD
+									{{/if}}
+								</td>
+								<td>{{guests}}</td>
+								<td><a href="/event/{{id}}/edit">Edit</a></td>
+							</tr>
+						{{else}}
+							<tr>
+								<td colspan="4" class="text-center">
+									No Events yet. <a href="/event/add">Create One</a>?
+								</td>
+							</tr>
+						{{/each}}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</script>
+
+	<script id="template-event" type="text/x-handlebars-template">
+		<div class="row">
+			<div class="col-sm-12">
+				<a href="/">&laquo; Back to Dashboard</a>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-sm-6">
+				<h1>{{title}}</h1>
+				<h3>Starts: {{#if start_date}}{{moment start_date}}{{else}}TBD{{/if}}</h3>
+				<h3>Ends: {{#if end_date}}{{moment end_date}}{{else}}TBD{{/if}}</h3>
+
+				<div class="row bg-info">
+					<form id="form-event-guest" class="col-sm-12">
+						<fieldset>
+							<legend>RSVP</legend>
+
+							<div class="form-group">
+								<label>First Name</label>
+								<input type="text" class="form-control" name="first_name">
+							</div>
+							<div class="form-group">
+								<label>Last Name</label>
+								<input type="text" class="form-control" name="last_name">
+							</div>
+							<div class="form-group">
+								<label>Email</label>
+								<input type="text" class="form-control" name="email">
+							</div>
+							<div class="form-group">
+								<button type="submit" class="btn btn-primary">Add</button>
+							</div>
+						</fieldset>
+					</form>
+				</div>
+			</div>
+			<div class="col-sm-6">
+				<h3>Guests:</h3>
+				<ul>
+					{{#each guests}}
+						<li>{{first_name}} {{last_name}} - {{email}}</li>
+					{{else}}
+						<li>No one yet.</li>
+					{{/each}}
+				</ul>
+			</div>
+		</div>
+	</script>
+
+	<script id="template-event_edit" type="text/x-handlebars-template">
+		<form id="form-event-edit">
+			<div class="row">
+				<div class="col-sm-12">
+					<a href="/">&laquo; Back to Dashboard</a>
+				</div>
+				<div class="col-sm-12">
+					<h1>{{#if id}}Edit{{else}}Add{{/if}} Event</h1>
+				</div>
+				<div class="col-sm-4 form-group">
+					<label>Title</label>
+					<input type="text" class="form-control" name="title" value="{{title}}">
+				</div>
+				<div class="col-sm-4 form-group">
+					<label>Start Date</label>
+					<div class="input-group date form-datetime">
+						<input type="text" class="form-control" name="start_date" value="{{start_date}}">
+						<span class="input-group-addon">
+							<span class="glyphicon glyphicon-calendar"></span>
+						</span>
+					</div>
+				</div>
+				<div class="col-sm-4 form-group">
+					<label>End Date</label>
+					<div class="input-group date form-datetime">
+						<input type="text" class="form-control" name="end_date" value="{{end_date}}">
+						<span class="input-group-addon">
+							<span class="glyphicon glyphicon-calendar"></span>
+						</span>
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-4 form-group">
+					<input type="hidden" name="id" value="{{id}}">
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</div>
+		</form>
+	</script>
+
+	<script id="template-event_not_found" type="text/x-handlebars-template">
+		<div class="row">
+			<div class="col-sm-12">
+				<h1>Event not found!</h1>
+			</div>
+		</div>
+	</script>
+
+	<script id="template-page_not_found" type="text/x-handlebars-template">
+		<div class="row">
+			<div class="col-sm-12">
+				<h1>Page not found!</h1>
+			</div>
+		</div>
+	</script>
+
+	<script type="text/javascript">
+		(function ($, page) {
+			var controller = {
+				showDashboard: function () {
+					$.ajax({
+						method: 'GET',
+						url: '/api/events'
+					}).then(function (data) {
+						render('dashboard', { events: data });
+						$('#event-list').DataTable();
+						$('#event-list').find('[data-event-id]').on('click', function (e) {
+							if (e.target.tagName !== 'A') {
+								e.preventDefault();
+								page('/event/' + $(e.currentTarget).data('eventId'));
+							}
+						});
+					});
+				},
+
+				addEvent: function () {
+					render('event_edit');
+					bindEventEditForm();
+				},
+
+				editEvent: function (ctx) {
+					var eventId = ctx.params.id;
+					fetchEvent(eventId).then(function (data) {
+						render('event_edit', data);
+						bindEventEditForm(eventId);
+					}, function () {
+						render('event_not_found');
+					});
+				},
+
+				showEvent: function (ctx) {
+					var eventId = ctx.params.id;
+					fetchEvent(eventId).then(function (data) {
+						render('event', data);
+
+						$('#form-event-guest').off('submit').on('submit', function (e) {
+							e.preventDefault();
+
+							$.ajax({
+								url: '/api/event/' + eventId + '/guest',
+								method: 'POST',
+								data: $(e.currentTarget).serialize()
+							}).then(function () {
+								page('/event/' + eventId);
+							});
+						});
+					}, function () {
+						render('event_not_found');
+					});
+				},
+
+				notfound: function () {
+					render('page_not_found');
+				}
+			};
+
+			function bindEventEditForm (eventId) {
+				$('.form-datetime').datetimepicker({
+					format: 'YYYY-MM-DD HH:mm:ss',
+					sideBySide: true
+				});
+				$('#form-event-edit').off('submit').on('submit', function (e) {
+					var request = {
+						url: '/api/event',
+						method: 'POST',
+						data: $(e.currentTarget).serialize()
+					};
+					e.preventDefault();
+
+					if (eventId) {
+						request.method = 'PUT';
+						request.url += '/' + eventId;
+					}
+					$.ajax(request).then(function (data) {
+						page('/event/' + data.id);
+					});
+				});
+			}
+
+			function render (templateId, data) {
+				var template = Handlebars.compile($('#template-' + templateId).text());
+				data = data || {};
+				$('#main-container').html(template(data));
+			}
+
+			function fetchEvent (eventId) {
+				return $.ajax({
+					method: 'GET',
+					url: '/api/event/' + eventId
+				});
+			}
+
+			Handlebars.registerHelper('moment', function (context, format, options) {
+				if (options === undefined) {
+					options = format;
+					format = 'lll';
+				}
+				return moment(context).format(format);
+			});
+
+			Handlebars.registerHelper('eventGroup', function (context) {
+				var isUpcoming = !moment().isAfter(context);
+				return isUpcoming ? 'Upcoming' : 'Past';
+			});
+
+			// Setup Router
+			page('/', controller.showDashboard);
+			page('/event/add', controller.addEvent);
+			page('/event/:id/edit', controller.editEvent);
+			page('/event/:id', controller.showEvent);
+			page('*', controller.notfound);
+			page();
+		})($, page);
+	</script>
+
+</body>
+</html>
